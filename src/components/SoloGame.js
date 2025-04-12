@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import "./SoloGame.css";
 import wordList from "../data/wordList.json";
 
@@ -22,12 +22,21 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
   const [message, setMessage] = useState("...");
   const [gameOver, setGameOver] = useState(false);
   const [incorrectRows, setIncorrectRows] = useState([]);
+
   const [spellVisible, setSpellVisible] = useState(false);
   const [spellExploded, setSpellExploded] = useState(false);
   const [fizzleTriggered, setFizzleTriggered] = useState(false);
   const [spellsCast, setSpellsCast] = useState(0);
+
   const [empowering, setEmpowering] = useState(false);
-  
+  const elementRefs = useRef([]);
+  const wizardRef = useRef(null);
+
+  const bgmRef = useRef(null);
+  const empowerSound = useRef(null);
+  const explodeSound = useRef(null);
+  const fizzleSound = useRef(null);
+
   console.log(targetWord);
 
   const resetRound = useCallback((success) => {
@@ -46,15 +55,29 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
     setSpellExploded(false);
     setFizzleTriggered(false);
     setTargetWord(generateWord(wordList));
-  }, [hp]);
+    
+    if (success) {
+      elementRefs.current.forEach((el) => {
+        if (!el) return;
+        const wizardRect = wizardRef.current.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const dx = wizardRect.left - elRect.left;
+        const dy = wizardRect.top - elRect.top;
+        el.style.transform = `translate(${dx}px, ${dy}px)`;
+        el.style.opacity = "1";
+        wizardRef.current.src = `${selectedWizard.gif}`
+      });
+    }
+  }, [hp, selectedWizard]);
 
   const handleFizzle = useCallback(() => {
     setMessage("Spell Fizzled! Cast a New One!");
     setHP((prev) => Math.max(prev - 20, 0));
     setTimeout(() => resetRound(false), 500);
-  }, [resetRound]);
+    fizzleSound.current.play();
+  }, [resetRound, fizzleSound]);
 
-  useEffect(() => {
+  useEffect(() => { // Keyboard
     const handleKeyDown = (e) => {
       if (gameOver) return;
       const key = e.key.toUpperCase();
@@ -70,8 +93,15 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   });
 
-  useEffect(() => {
-    if (gameOver || fizzleTriggered) return;
+  useEffect(() => { // Sound Effects
+    empowerSound.current = new Audio('./audio/empower.wav');
+    explodeSound.current = new Audio('./audio/explosion.wav');
+    fizzleSound.current = new Audio('./audio/fizzle.wav');
+    fizzleSound.current.volume = .1;
+  }, [empowerSound, explodeSound, fizzleSound]);
+
+  useEffect(() => { // Timer
+    if (gameOver || fizzleTriggered || spellVisible) return;
     const interval = setInterval(() => {
       setTimer(prev => {
         if (prev <= 0) {
@@ -82,7 +112,7 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
       });
     }, 100);
     return () => clearInterval(interval);
-  }, [gameOver, fizzleTriggered]);
+  }, [gameOver, fizzleTriggered, spellVisible]);
   
   useEffect(() => { // Trigger Fizzle ONCE when timer hits 0
     if (timer <= 0 && !gameOver && !fizzleTriggered) {
@@ -91,10 +121,11 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
     }
   }, [timer, gameOver, fizzleTriggered, handleFizzle]);
 
-  useEffect(() => {
+  useEffect(() => { // Spell Casted
     if (!spellVisible) return;
     const explodeTimeout = setTimeout(() => {
       setSpellExploded(true);
+      explodeSound.current.play();
     }, 750); // spell travel time
   
     const cleanupTimeout = setTimeout(() => {
@@ -107,7 +138,37 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
       clearTimeout(explodeTimeout);
       clearTimeout(cleanupTimeout);
     };
-  }, [spellVisible, resetRound]);
+  }, [spellVisible, resetRound, explodeSound]);
+
+  useEffect(() => { // Empower Spell
+    if (empowering) {
+      elementRefs.current.forEach((el) => {
+        if (!el) return;
+  
+        const wizardRect = wizardRef.current.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+  
+        const dx = wizardRect.left - elRect.left;
+        const dy = wizardRect.top - elRect.top;
+  
+        el.style.transition = "transform 0.8s ease-in-out, opacity 0.8s";
+        el.style.transform = `translate(${dx}px, ${dy}px)`;
+        el.style.opacity = "0";
+      });
+      empowerSound.current.play();
+    }
+  }, [empowering, empowerSound]);
+
+  useEffect(() => { // BGM
+    bgmRef.current = new Audio('./audio/bgm.wav');
+    bgmRef.current.loop = true;
+    bgmRef.current.volume = 0.05; 
+    bgmRef.current.play().catch((e) => {console.log(e);});
+    return () => { // reset when exiting solo
+      bgmRef.current.pause();
+      bgmRef.current.currentTime = 0; 
+    };
+  }, [bgmRef]);
 
   const handleLetterInput = (letter) => {
     const newBoard = [...board];
@@ -156,18 +217,13 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
 
     if (guess === targetWord) {
       setEmpowering(true);
-      /*
-      setSpellVisible(true);
-      //applyWizardEffect();
-      setMessage(`Spell Casted! ${selectedWizard.element}`);
-      setSpellsCast((prev) => prev + 1);
-      */
+      wizardRef.current.src = `${selectedWizard.cast}`
       setTimeout(() => {
         setEmpowering(false);
         setSpellVisible(true);
         setMessage(`Spell Successfully Casted! ${selectedWizard.element}`);
         setSpellsCast((prev) => prev + 1);
-      }, 600); // Adjust time to match your animation
+      }, 600);
     } else {
       setIncorrectRows([...incorrectRows, currentAttempt]);
       if (currentAttempt + 1 === MAX_ATTEMPTS) {
@@ -178,26 +234,6 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
       }
     } 
   };
-
-  /*
-  const applyWizardEffect = () => {
-    if (selectedWizard === "fire") {
-      const bonusDamage = (MAX_ATTEMPTS - currentAttempt - 1) * 5;
-      setMessage(`🔥 Fire Bonus: +${bonusDamage} damage!`);
-      setTimeout(() => {
-        setHP((prev) => Math.max(prev - 20 - bonusDamage, 0));
-      }, 500);
-    } else if (selectedWizard === "ice") {
-      setMessage("❄️ Ice Bonus: +10s!");
-      setTimer((prev) => prev + 10);
-    } else if (selectedWizard === "nature") {
-      setMessage("🌿 Nature Bonus: +10 HP!");
-      setHP((prev) => Math.min(prev + 10, STARTING_HP));
-    } else {
-      setHP((prev) => Math.max(prev - 20, 0));
-    }
-  };
-  */
   
   return (
     <div className="solo-game-container">
@@ -207,16 +243,16 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
         <div className="status-header">
           <p className="username">{username} - {hp} HP</p>
           <div className ="banner">
-            <img src={`${selectedWizard.img}`} alt="Wizard" className="wizard-icon" />
+            <img src={`${selectedWizard.gif}`} alt="Wizard" className="wizard-icon" ref={wizardRef}/>
             <img
               src={spellExploded ? "./images/explode.png" : selectedWizard.spell} alt="Wizard-spell"
               className={`wizard-spell ${spellVisible ? "spell-active" : ""}`}
               style={{ visibility: spellVisible || spellExploded ? "visible" : "hidden" }}
             />
-            <img src={`./images/dummy.png`} alt="dummy" className="training-dummy" />
+            <img src={`./images/training.png`} alt="dummy" className="training-dummy" />
           </div>
           <div className="timer-bar-container">
-            <div className="timer-bar" style={{ width: `${(timer / STARTING_TIME) * 100}%` }} />
+            <div className={`timer-bar ${timer <= 10 ? "danger" : timer <= 30 ? "warning" : ""}`} style={{ width: `${(timer / STARTING_TIME) * 100}%` }} />
           </div>
         </div>
   
@@ -232,7 +268,8 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
                 </div>
               ))}
               <span
-                className={`row-element ${empowering && rowIndex >= currentAttempt ? "converge-element" : ""}`}>
+                ref={(el) => (elementRefs.current[rowIndex] = el)}
+                className={`row-element ${empowering && rowIndex > currentAttempt ? "empowering-icon" : ""}`}>
                 {incorrectRows.includes(rowIndex) ? "❌" : selectedWizard.element}
               </span>
             </div>

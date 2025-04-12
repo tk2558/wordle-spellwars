@@ -8,6 +8,8 @@ const wizards = [
     name: "Fire Mage",
     img: "/images/fire-mage.png",
     spell: "/images/fire-mage-spell.png",
+    gif: "/images/fire-mage-casting.gif",
+    cast: "/images/fire-mage-cast.png",
     element: "🔥",
     quote: "\"Fire, fire, light the fire\"",
     description: "The fire mage deals extra damage for every remaining attempt left after successfully casting a spell."
@@ -17,6 +19,8 @@ const wizards = [
     name: "Ice Mage",
     img: "/images/ice-mage.png",
     spell: "/images/ice-mage-spell.png",
+    gif: "/images/ice-mage-casting.gif",
+    cast: "/images/ice-mage-cast.png",
     element: "❄️",
     quote: "\"Chillin' out with the crew in the school yard\"",
     description: "The ice mage temporarily freezes opponent’s after successfully casting a spell."
@@ -26,6 +30,8 @@ const wizards = [
     name: "Nature Mage",
     img: "/images/nature-mage.png",
     spell: "/images/nature-mage-spell.png",
+    gif: "/images/nature-mage-casting.gif",
+    cast: "/images/nature-mage-cast.png",
     element: "🌼",
     quote: "\"Return to Mother Nature\"",
     description: "The nature mage heals your HP based on leftover attempts after successfully casting a spell."
@@ -35,6 +41,8 @@ const wizards = [
     name: "Lightning Mage",
     img: "/images/lightning-mage.png",
     spell: "/images/lightning-mage-spell.png",
+    gif: "/images/lightning-mage-casting.gif",
+    cast: "/images/lightning-mage-cast.png",
     element: "⚡",
     quote: "\"UNLIMITED POWER!\"",
     description: "The lightning mage deals extra damage based on the remaining time after successfully casting a spell."
@@ -44,6 +52,8 @@ const wizards = [
     name: "Death Mage",
     img: "/images/death-mage.png",
     spell: "/images/death-mage-spell.png",
+    gif: "/images/death-mage-casting.png",
+    cast: "/images/death-mage-cast.png",
     element: "💀",
     quote: "\"...\"",
     description: "The death mage decreases enemy player's time after successfully casting a spell."
@@ -59,8 +69,10 @@ export default function MainMenu() {
     setGameMode(null);
   };
 
- // Return SoloGame when solo mode is selected
- if (gameMode === "solo") { return <SoloGame username={username} selectedWizard={selectedWizard} onExit={handleExit}/>; }
+  // Return SoloGame when solo mode is selected
+  if (gameMode === "solo") { 
+    return <SoloGame username={username} selectedWizard={selectedWizard} onExit={handleExit}/>; 
+  }
 
   // Future PVP
   // if (gameMode === "pvp") {  <PvPGame username={username} selectedWizard={selectedWizard} roomId={roomId} />; }

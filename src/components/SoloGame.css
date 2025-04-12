@@ -12,11 +12,11 @@
   left: 20px;
   font-size: 18px;
   font-weight: bold;
-  background-color: #add8f0;;
+  background-color: #add8f0;
   padding: 8px 12px;
   border-radius: 8px;
   border: 4px solid #fff;
-  color: #fff;
+  color: #5a565d;
   z-index: 10;
 }
 
@@ -26,12 +26,13 @@
   right: 20px;
   font-size: 18px;
   font-weight: bold;
-  background-color: #f1c84b;;
+  background-color: #f02929;
   padding: 8px 12px;
   border-radius: 8px;
   border: 4px solid #fff;
-  color: #5a565d;
+  color: #fff;
   z-index: 10;
+  cursor: pointer;
 }
 
 
@@ -111,7 +112,14 @@
 .timer-bar {
   height: 100%;
   background-color: #1fbd0a;  
-  transition: width 0.1s linear; /* Smooth update */
+  transition: width 0.1s linear;
+}
+.timer-bar.warning {
+  background-color: #f1c84b;
+}
+
+.timer-bar.danger {
+  background-color: #e74c3c;
 }
 
 .wordle-board {
@@ -203,4 +211,20 @@
 
 .converge-element {
   animation: convergeToWizard 0.8s ease-in-out forwards;
+}
+
+@keyframes flip {
+  0% {
+    transform: scaleY(1)
+  }  
+  50% {
+    transform: scaleY(0)
+  }
+  100% {
+    transform: scaleY(1)
+  }
+}
+
+.flipY {
+  animation: flip 0.5s ease;
 }
