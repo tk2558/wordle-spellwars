@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "./App.css";
-import SoloGame from "./components/SoloGame"; 
+import SoloGame from "./components/soloGame"; 
 
 const wizards = [
   {
@@ -63,20 +63,41 @@ const wizards = [
 export default function MainMenu() {
   const [selectedWizard, setSelectedWizard] = useState(wizards[0]);
   const [username, setUsername] = useState("Guest" + Math.floor(Math.random() * 100000));
-  const [gameMode, setGameMode] = useState(null); // "solo" | "pvp" | null
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [gameMode, setGameMode] = useState(null); // "solo" | "pvp" | "join" | null
+  const [roomId, setRoomId] = useState("");
+  const [inputRoomId, setInputRoomId] = useState("");
   
   const handleExit = () => { // Function to reset game mode
     setGameMode(null);
+    setRoomId("");
+  };
+
+  const handleJoinLobby = () => {
+    if (!inputRoomId) {
+      alert("Please enter a room code.");
+      return;
+    }
+
+    const roomExists = false;
+    if (roomExists) {
+      setRoomId(inputRoomId);
+      setGameMode("pvp");
+      setShowJoinModal(false);
+    } else {
+      alert("Room does not exist!");
+    }
   };
 
   // Return SoloGame when solo mode is selected
   if (gameMode === "solo") { 
     return <SoloGame username={username} selectedWizard={selectedWizard} onExit={handleExit}/>; 
   }
+  // Future join PVP
+  // if (gameMode === "pvp") {  <PvPGame username={username} selectedWizard={selectedWizard} onExit={handleExit} />; }
+  // Future join PVP
+  // if (gameMode === "join") {  <PvPGame username={username} selectedWizard={selectedWizard} roomId={roomId} onExit={handleExit} />; }
 
-  // Future PVP
-  // if (gameMode === "pvp") {  <PvPGame username={username} selectedWizard={selectedWizard} roomId={roomId} />; }
-  
   return (
     <div className="main-menu">
       <h1 className="title">Wordle Spell Wars</h1>
@@ -103,7 +124,7 @@ export default function MainMenu() {
           />
           <button onClick={() => setGameMode("solo")}>Practice</button>
           <button>Create Lobby</button>
-          <button>Join Lobby</button>
+          <button onClick={() => setShowJoinModal(true)}>Join Lobby</button>
         </div>
 
         {}
@@ -129,6 +150,23 @@ export default function MainMenu() {
           </div>
         </div>
       </div>
+      {showJoinModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>Enter Room Code</h2>
+            <input
+              type="text"
+              value={inputRoomId}
+              onChange={(e) => setInputRoomId(e.target.value)}
+              placeholder="Room Code"
+            />
+            <div className="modal-buttons">
+              <button className = "modal-enter" onClick={handleJoinLobby}>Enter</button>
+              <button className = "modal-cancel" onClick={() => setShowJoinModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

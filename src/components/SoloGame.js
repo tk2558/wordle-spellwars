@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
-import "./SoloGame.css";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import "./soloGame.css";
 import wordList from "../data/wordList.json";
 
 const MAX_ATTEMPTS = 6;
 const WORD_LENGTH = 5;
 const STARTING_HP = 100;
 const STARTING_TIME = 60;
+const ENEMY_HP = 999; // Dummy
 
 function generateWord(wordList) {
   return wordList[Math.floor(Math.random() * wordList.length)].toUpperCase();
@@ -18,6 +19,7 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
   const [currentLetterIndex, setCurrentLetterIndex] = useState(0);
   const [targetWord, setTargetWord] = useState(generateWord(wordList));
   const [hp, setHP] = useState(STARTING_HP);
+  const [enemyhp, setEnemyHP] = useState(ENEMY_HP); // Dummy
   const [timer, setTimer] = useState(STARTING_TIME);
   const [message, setMessage] = useState("...");
   const [gameOver, setGameOver] = useState(false);
@@ -27,16 +29,24 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
   const [spellExploded, setSpellExploded] = useState(false);
   const [fizzleTriggered, setFizzleTriggered] = useState(false);
   const [spellsCast, setSpellsCast] = useState(0);
+  const [letterStatuses, setLetterStatuses] = useState({}); 
 
   const [empowering, setEmpowering] = useState(false);
   const elementRefs = useRef([]);
   const wizardRef = useRef(null);
+  const gameBoxRef = useRef(null);
 
   const bgmRef = useRef(null);
   const empowerSound = useRef(null);
   const explodeSound = useRef(null);
   const fizzleSound = useRef(null);
 
+  const keyboardRows = useMemo(() => [
+    ['Q','W','E','R','T','Y','U','I','O','P'],
+    ['A','S','D','F','G','H','J','K','L'],
+    ["Enter", 'Z','X','C','V','B','N','M', '✖️']
+  ], []);
+  
   console.log(targetWord);
 
   const resetRound = useCallback((success) => {
@@ -55,7 +65,9 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
     setSpellExploded(false);
     setFizzleTriggered(false);
     setTargetWord(generateWord(wordList));
-    
+    setLetterStatuses({});
+    setEnemyHP(ENEMY_HP);
+
     if (success) {
       elementRefs.current.forEach((el) => {
         if (!el) return;
@@ -70,11 +82,22 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
     }
   }, [hp, selectedWizard]);
 
+  const triggerDamageAnimation = () => {
+    if (!gameBoxRef.current) return;
+    gameBoxRef.current.classList.remove('takeDMG');
+    void gameBoxRef.current.offsetWidth; 
+    gameBoxRef.current.classList.add('takeDMG');
+    gameBoxRef.current.addEventListener('animationend', () => {
+      gameBoxRef.current.classList.remove('takeDMG');
+    }, { once: true });
+  };
+
   const handleFizzle = useCallback(() => {
     setMessage("Spell Fizzled! Cast a New One!");
-    setHP((prev) => Math.max(prev - 20, 0));
-    setTimeout(() => resetRound(false), 500);
     fizzleSound.current.play();
+    setHP((prev) => Math.max(prev - 20, 0));
+    triggerDamageAnimation();
+    setTimeout(() => resetRound(false), 500);
   }, [resetRound, fizzleSound]);
 
   useEffect(() => { // Keyboard
@@ -126,6 +149,8 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
     const explodeTimeout = setTimeout(() => {
       setSpellExploded(true);
       explodeSound.current.play();
+      // if (selectedWizard.id === "fire-mage") {setEnemyHP((prev) => prev - 100);} // Test
+      setEnemyHP((prev) => prev - 20);
     }, 750); // spell travel time
   
     const cleanupTimeout = setTimeout(() => {
@@ -138,20 +163,18 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
       clearTimeout(explodeTimeout);
       clearTimeout(cleanupTimeout);
     };
-  }, [spellVisible, resetRound, explodeSound]);
+  }, [spellVisible, resetRound, explodeSound, selectedWizard]);
 
   useEffect(() => { // Empower Spell
     if (empowering) {
       elementRefs.current.forEach((el) => {
-        if (!el) return;
-  
+        if (!el) return; // el.textContent === "❌" to get remaining attempts
         const wizardRect = wizardRef.current.getBoundingClientRect();
         const elRect = el.getBoundingClientRect();
   
         const dx = wizardRect.left - elRect.left;
         const dy = wizardRect.top - elRect.top;
-  
-        el.style.transition = "transform 0.8s ease-in-out, opacity 0.8s";
+
         el.style.transform = `translate(${dx}px, ${dy}px)`;
         el.style.opacity = "0";
       });
@@ -186,6 +209,7 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
   };
 
   const handleSubmit = () => {
+    const newStatuses = { ...letterStatuses };
     const guess = board[currentAttempt].join("");
     if (guess.length < WORD_LENGTH) {
       setMessage("Not enough letters!");
@@ -198,22 +222,25 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
     for (let i = 0; i < WORD_LENGTH; i++) {
       if (guess[i] === targetWord[i]) {
         newColors[i] = "green";
+        newStatuses[guess[i]] = 'correct';
         targetLetters[i] = null;
+        continue;
       }
-    }
-
-    for (let i = 0; i < WORD_LENGTH; i++) {
-      if (newColors[i] === "green") continue;
       const index = targetLetters.indexOf(guess[i]);
       if (index !== -1) {
         newColors[i] = "yellow";
+        newStatuses[guess[i]] = 'present';
         targetLetters[index] = null;
+      }
+      else {
+        newStatuses[guess[i]] = 'absent';
       }
     }
 
     const newColorBoard = [...colors];
     newColorBoard[currentAttempt] = newColors;
     setColors(newColorBoard);
+    setLetterStatuses(newStatuses);
 
     if (guess === targetWord) {
       setEmpowering(true);
@@ -237,46 +264,71 @@ export default function SoloGame({ selectedWizard, username, onExit }) {
   
   return (
     <div className="solo-game-container">
-      <div className="spell-counter">Spells Casted: {spellsCast}</div>
-      <button className="exit" onClick={onExit}>Exit</button>
-      <div className="game-box">
-        <div className="status-header">
-          <p className="username">{username} - {hp} HP</p>
-          <div className ="banner">
-            <img src={`${selectedWizard.gif}`} alt="Wizard" className="wizard-icon" ref={wizardRef}/>
-            <img
-              src={spellExploded ? "./images/explode.png" : selectedWizard.spell} alt="Wizard-spell"
-              className={`wizard-spell ${spellVisible ? "spell-active" : ""}`}
-              style={{ visibility: spellVisible || spellExploded ? "visible" : "hidden" }}
-            />
-            <img src={`./images/training.png`} alt="dummy" className="training-dummy" />
-          </div>
-          <div className="timer-bar-container">
-            <div className={`timer-bar ${timer <= 10 ? "danger" : timer <= 30 ? "warning" : ""}`} style={{ width: `${(timer / STARTING_TIME) * 100}%` }} />
-          </div>
-        </div>
-  
-        <div className="wordle-board">
-          {board.map((row, rowIndex) => (
-            <div key={rowIndex} className="wordle-row">
-              {row.map((letter, colIndex) => (
-                <div
-                  key={colIndex}
-                  className={`wordle-tile ${colors[rowIndex][colIndex]}`}
-                >
-                  {letter}
-                </div>
-              ))}
-              <span
-                ref={(el) => (elementRefs.current[rowIndex] = el)}
-                className={`row-element ${empowering && rowIndex > currentAttempt ? "empowering-icon" : ""}`}>
-                {incorrectRows.includes(rowIndex) ? "❌" : selectedWizard.element}
-              </span>
+      <div className="game-header">
+        <div className="spell-counter">Spells Casted: {spellsCast}</div>
+        <button className="exit" onClick={onExit}>Leave</button>
+      </div>
+      <div className = "game-container">
+        <div className="game-box">
+          <div className="status-header">
+            <p className="username" ref={gameBoxRef}>{username} - {hp} HP</p>
+            <p className="message">{message}</p>
+            <div className ="banner">
+              <img src={`${selectedWizard.gif}`} alt="Wizard" className="wizard-icon" ref={wizardRef}/>
+              <img
+                src={spellExploded ? "./images/explode.png" : selectedWizard.spell} alt="Wizard-spell"
+                className={`wizard-spell ${spellVisible ? "spell-active" : ""}`}
+                style={{ visibility: spellVisible || spellExploded ? "visible" : "hidden" }}
+              />
+              <img src={`./images/training.png`} alt="dummy" className="training-dummy" />
             </div>
-          ))}
+            <div className="timer-bar-container">
+              <div className={`timer-bar ${timer <= 10 ? "danger" : timer <= 30 ? "warning" : ""}`} style={{ width: `${(timer / STARTING_TIME) * 100}%` }} />
+            </div>
+          </div>
+          <div className="wordle-board">
+            {board.map((row, rowIndex) => (
+              <div key={rowIndex} className="wordle-row">
+                {row.map((letter, colIndex) => (
+                  <div
+                    key={colIndex}
+                    className={`wordle-tile ${colors[rowIndex][colIndex]}`}>
+                    {letter}
+                  </div>
+                ))}
+                <span
+                  ref={(el) => (elementRefs.current[rowIndex] = el)}
+                  className={`row-element ${empowering && rowIndex > currentAttempt ? "empowering-icon" : ""}`}>
+                  {incorrectRows.includes(rowIndex) ? "❌" : selectedWizard.element}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-  
-        <p className="message">{message}</p>
+        <div className="info-container">
+          <h2>Training Dummy - {enemyhp} HP</h2>
+          <img src="./images/training.png" alt="Enemy-Dummy" className="enemy-image" />
+          <img src="./images/explode.png" alt="Enemy-explode" className="explosion" 
+          style={{ visibility: spellExploded ? "visible" : "hidden" }}/>
+          <div className="enemy-health-bar">
+            <div className="enemy-hp" style={{ width: `${(enemyhp/ ENEMY_HP) * 100}%` }}></div>
+          </div>
+          <hr className="divider" />
+          <div className="keyboard-preview">
+            {keyboardRows.map((row, rowIndex) => (
+              <div key={rowIndex} className="keyboard-row">
+                {row.map((letter) => (
+                  <button
+                    key={letter}
+                    className={`key ${letterStatuses[letter] || ''}`}
+                    disabled>
+                    {letter}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
