@@ -22,11 +22,11 @@ const rooms = {};
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
-  // Create a new room and add the host player
   socket.on('createRoom', (username, wizard, callback) => {
     const roomId = uuidv4().slice(0, 6).toUpperCase();
     rooms[roomId] = [];
-    rooms[roomId].push({ username, wizard, socketId: socket.id });
+    rooms[roomId].push({ id: socket.id, username, wizard, ready: false, hp: 100 });
+    
     socket.join(roomId);
     console.log(`${username} created room ${roomId}`);
     callback(roomId);
@@ -44,22 +44,62 @@ io.on('connection', (socket) => {
     }
 
     // Add second player
-    rooms[roomId].push({ username, wizard, socketId: socket.id });
+    rooms[roomId].push({ id: socket.id, username, wizard, ready: false, hp: 100 });
     socket.join(roomId);
     console.log(`${username} joined room ${roomId}`);
-
-    // Notify both players (or just callback the one who joined)
     callback({ success: true, roomId });
+  });
+
+  socket.on('getEnemy', (roomId) => {
+    const room = rooms[roomId];
+    if (room.length <= 1) { return; }
+
+    const playerData = rooms[roomId].find(p => p.id === socket.id);
+    const otherPlayer = rooms[roomId].find(p => p.id !== socket.id);
+
+    //console.log(room);
+    io.to(socket.id).emit('opponentInfo', otherPlayer);
+    io.to(otherPlayer.id).emit('opponentInfo', playerData);
+  });
+
+  socket.on('setPlayerReady', (ready, roomId) => {
+    const playerData = rooms[roomId].find(p => p.id === socket.id);
+    const otherPlayer = rooms[roomId].find(p => p.id !== socket.id);
+    playerData.ready = !ready;
+
+    console.log(`Letting ${otherPlayer.username} know that ${playerData.username} is ${playerData.ready}`)
+    io.to(otherPlayer.id).emit('opponentReady', playerData.ready);
+
+    if (playerData.ready && otherPlayer.ready) {
+      console.log(`Game for Room ${roomId} start!`)
+      //io.to(room).emit('bothPlayersReady');
+      io.to(socket.id).emit('bothPlayersReady', otherPlayer);
+      io.to(otherPlayer.id).emit('bothPlayersReady', playerData);
+    }
+  });
+
+  socket.on('dealDmg', (roomId) => {
+    const otherPlayer = rooms[roomId].find(p => p.id !== socket.id);
+    otherPlayer.hp -= 20;
+    io.to(otherPlayer.id).emit('takeDmg');
+    console.log(`${otherPlayer.username} has ${otherPlayer.hp} left!`)
+    if (otherPlayer.hp == 0) {
+      io.to(socket.id).emit('GameDone');
+      io.to(otherPlayer.id).emit('GameDone');
+    }
   });
 
   // Handle disconnects
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
-    // Clean up rooms where host or guest left
     for (const [roomId, room] of Object.entries(rooms)) {
-      if (room.host.id === socket.id || (room.guest && room.guest.id === socket.id)) {
+      if (room.length == 1) {
         io.to(roomId).emit('playerLeft');
+        break;
+      }
+      else if (room.length == 0) {
         delete rooms[roomId];
+        console.log(`Room ${roomId}deleted`);
         break;
       }
     }

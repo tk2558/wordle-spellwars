@@ -129,6 +129,19 @@
   transform: translateX(245px);
 }
 
+.enemy-spell {
+  position: absolute;
+  height: 48px;
+  top: 0;
+  right: 50px;
+  transition: transform .8s linear;
+  z-index: 10;
+}
+
+.enemy-spell-active {
+  transform: translateX(-245px);
+}
+
 .training-dummy {
   position: absolute;
   height: 64px;

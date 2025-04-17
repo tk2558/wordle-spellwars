@@ -47,7 +47,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
   const empowerSound = useRef(null);
   const explodeSound = useRef(null);
   const fizzleSound = useRef(null);
-
+  
   const [ready, setReady] = useState(false);
   const [gameStart, setGameStart] = useState(false);
   const readyBtnRef = useRef(null);
@@ -85,7 +85,6 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
     setFizzleTriggered(false);
     setTargetWord(generateWord(wordList));
     setLetterStatuses({});
-    setEnemyHP(ENEMY_HP);
 
     if (success) {
       elementRefs.current.forEach((el) => {
@@ -114,7 +113,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
   const handleFizzle = useCallback(() => {
     setMessage("Spell Fizzled! Cast a New One!");
     fizzleSound.current.play();
-    setHP((prev) => Math.max(prev - 20, 0));
+    setHP((prev) => Math.max(prev - 10, 0)); // Fizzle Recoil
     triggerDamageAnimation();
     setTimeout(() => resetRound(false), 500);
   }, [resetRound, fizzleSound]);
@@ -139,7 +138,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
   useEffect(() => { // Socket
     socket.emit('getEnemy', roomId, () => {}); 
     socket.on('opponentInfo', (enemy) => {
-      console.log(enemy);
+      //console.log(enemy);
       setOpponentUsername(enemy.username);
       setEnemyWizardImage(enemy.wizard.img);
       setEnemyWizardImageMini(enemy.wizard.cast);
@@ -149,10 +148,21 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
     socket.on('opponentReady', (ready) => { setOpponentReady(ready); });
 
     socket.on('bothPlayersReady', () => {
-      console.log("GAME STARTED!")
+      //console.log("GAME STARTED!")
       readyBtnRef.current.style.display = 'none';
       msgRef.current.style.display = 'inline';
+      setMessage("Game Start!");
       setGameStart(true);
+    });
+
+    socket.on('takeDmg', () => { setHP((prev) => Math.max(prev - 20, 0)) });
+
+    socket.on('GameDone', () => {
+      //console.log("GAME STARTED!")
+      setMessage("Game Start!");
+      setGameStart(false);
+      if (!hp) { setMessage("Game Over! You Lose!"); }
+      else { setMessage("Game Over! You Win!"); }
     });
 
     return () => {
@@ -160,8 +170,9 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
       socket.off('opponentReady');
       socket.off('opponentUnready');
       socket.off('bothPlayersReady');
+      socket.off('takeDmg');
     };
-  }, [roomId]);
+  }, [roomId, hp]);
 
   useEffect(() => { // Sound Effects
     empowerSound.current = new Audio('./audio/empower.wav');
@@ -198,6 +209,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
       explodeSound.current.play();
       // if (selectedWizard.id === "fire-mage") {setEnemyHP((prev) => prev - 100);} // Test
       setEnemyHP((prev) => prev - 20);
+      socket.emit('dealDmg', roomId, () => {}); 
     }, 750); // spell travel time
   
     const cleanupTimeout = setTimeout(() => {
@@ -210,7 +222,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
       clearTimeout(explodeTimeout);
       clearTimeout(cleanupTimeout);
     };
-  }, [spellVisible, resetRound, explodeSound, selectedWizard]);
+  }, [spellVisible, resetRound, explodeSound, selectedWizard, roomId]);
 
   useEffect(() => { // Empower Spell
     if (empowering) {
@@ -351,7 +363,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
           </div>
         </div>
         <div className="info-container">
-          <h2> {gameStart ? `${opponentUsername} - ${ENEMY_HP} HP` :  
+          <h2> {gameStart ? `${opponentUsername} - ${enemyhp} HP` :  
           opponentUsername ? `${opponentUsername} - ${opponentReady ? "Ready" : "Not Ready"}` : "Waiting for another player..."
           }
           </h2>
