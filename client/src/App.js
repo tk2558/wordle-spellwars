@@ -59,7 +59,19 @@ const wizards = [
     element: "💀",
     quote: "\"...\"",
     description: "The death mage decreases enemy player's time after successfully casting a spell."
-  }
+  },///*
+  {
+    id: "ocean-mage",
+    name: "Ocean Mage",
+    img: "/images/ocean-mage.png",
+    spell: "/images/ocean-mage-spell.png",
+    gif: "/images/ocean-mage-casting.gif",
+    cast: "/images/ocean-mage-cast.png",
+    element: "🔱",
+    quote: "\"A\"",
+    description: "The ocean mage does things after (idk yet) casting a spell."
+  } 
+  //*/
 ];
 
 export default function MainMenu() {

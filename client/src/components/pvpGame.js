@@ -7,7 +7,6 @@ const MAX_ATTEMPTS = 6;
 const WORD_LENGTH = 5;
 const STARTING_HP = 100;
 const STARTING_TIME = 60;
-const ENEMY_HP = 100;
 
 function generateWord(wordList) {
   return wordList[Math.floor(Math.random() * wordList.length)].toUpperCase();
@@ -20,17 +19,20 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
   const [currentLetterIndex, setCurrentLetterIndex] = useState(0);
   const [targetWord, setTargetWord] = useState(generateWord(wordList));
 
-  const [enemyhp, setEnemyHP] = useState(ENEMY_HP);
+  const [enemyhp, setEnemyHP] = useState(STARTING_HP);
   const [opponentUsername, setOpponentUsername] = useState(null);
   const [opponentReady, setOpponentReady] = useState(false);
+
   const [enemyWizardImage, setEnemyWizardImage] = useState("./images/loading.png");
   const [enemyWizardImageMini, setEnemyWizardImageMini] = useState("./images/training.png");
+  const [enemySpell, setEnemySpell] = useState(null);
+  const [enemySpellVisible, setEnemySpellVisible] = useState(false);
+  const [enemySpellExploded, setEnemySpellExploded] = useState(false);
   const imgRef = useRef(null);
 
   const [hp, setHP] = useState(STARTING_HP);
   const [timer, setTimer] = useState(STARTING_TIME);
   const [message, setMessage] = useState("...");
-  const [gameOver, setGameOver] = useState(false);
   const [incorrectRows, setIncorrectRows] = useState([]);
 
   const [spellVisible, setSpellVisible] = useState(false);
@@ -55,9 +57,13 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
 
   //const [players, setPlayers] = useState([]);
 
-  const handleReady = () => { // Function to reset game mode
-    socket.emit('setPlayerReady', ready, roomId, () => {}); 
+  const handleReady = () => { // Function to reset game 
     setReady((prev) => !prev);
+    socket.emit('setPlayerReady', ready, roomId, () => {
+      setHP(STARTING_HP);
+      setTimer(STARTING_TIME);
+      resetRound(true);
+    }); 
   };
 
   const keyboardRows = useMemo(() => [
@@ -69,11 +75,6 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
   console.log(targetWord);
 
   const resetRound = useCallback((success) => {
-    if (hp <= 20 && !success) {
-      setGameOver(true);
-      setMessage("Game Over!");
-      return;
-    }
     setTimer(STARTING_TIME);
     setCurrentAttempt(0);
     setCurrentLetterIndex(0);
@@ -98,12 +99,13 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
       });
       wizardRef.current.src = `${selectedWizard.gif}`
     }
-  }, [hp, selectedWizard]);
+  }, [selectedWizard]);
 
   const triggerDamageAnimation = () => {
     if (!gameBoxRef.current) return;
     gameBoxRef.current.classList.remove('takeDMG');
     void gameBoxRef.current.offsetWidth; 
+
     gameBoxRef.current.classList.add('takeDMG');
     gameBoxRef.current.addEventListener('animationend', () => {
       gameBoxRef.current.classList.remove('takeDMG');
@@ -114,14 +116,14 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
     setMessage("Spell Fizzled! Cast a New One!");
     fizzleSound.current.play();
     setHP((prev) => Math.max(prev - 10, 0)); // Fizzle Recoil
+    socket.emit('recoil', roomId, () => {}); 
     triggerDamageAnimation();
     setTimeout(() => resetRound(false), 500);
-  }, [resetRound, fizzleSound]);
+  }, [resetRound, fizzleSound, roomId]);
 
   useEffect(() => { // Keyboard
-    if (!gameStart) { return; }
     const handleKeyDown = (e) => {
-      if (gameOver) return;
+      if (!gameStart) { return; }
       const key = e.key.toUpperCase();
       if (key === "BACKSPACE") {
         handleBackspace();
@@ -142,6 +144,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
       setOpponentUsername(enemy.username);
       setEnemyWizardImage(enemy.wizard.img);
       setEnemyWizardImageMini(enemy.wizard.cast);
+      setEnemySpell(enemy.wizard.spell);
       imgRef.current.style.display = 'inline';
     });
 
@@ -149,30 +152,38 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
 
     socket.on('bothPlayersReady', () => {
       //console.log("GAME STARTED!")
+      setHP(STARTING_HP);
+      setTimer(STARTING_TIME);
+      setEnemyHP(STARTING_HP);
       readyBtnRef.current.style.display = 'none';
       msgRef.current.style.display = 'inline';
       setMessage("Game Start!");
       setGameStart(true);
     });
 
-    socket.on('takeDmg', () => { setHP((prev) => Math.max(prev - 20, 0)) });
+    socket.on('takeDmg', () => { 
+      setHP((prev) => Math.max(prev - 20, 0)) 
+      setEnemySpellVisible(true);
+    });
 
-    socket.on('GameDone', () => {
-      //console.log("GAME STARTED!")
-      setMessage("Game Start!");
+    socket.on('GameDone', (Winner) => {
+      //console.log("GAME ENDED!")
       setGameStart(false);
-      if (!hp) { setMessage("Game Over! You Lose!"); }
-      else { setMessage("Game Over! You Win!"); }
+      socket.emit('resetGame', roomId, () => {}); 
+      setMessage(`Game Over! Winner: ${Winner}!`); 
+
+      setReady(false);
+      readyBtnRef.current.style.display = 'inline';
+      readyBtnRef.current.backgroundColor = '#444';
     });
 
     return () => {
       socket.off('opponentInfo');
       socket.off('opponentReady');
-      socket.off('opponentUnready');
       socket.off('bothPlayersReady');
       socket.off('takeDmg');
     };
-  }, [roomId, hp]);
+  }, [roomId, hp, ready, resetRound]);
 
   useEffect(() => { // Sound Effects
     empowerSound.current = new Audio('./audio/empower.wav');
@@ -182,7 +193,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
   }, [empowerSound, explodeSound, fizzleSound]);
 
   useEffect(() => { // Timer
-    if (gameOver || fizzleTriggered || spellVisible || !gameStart) return;
+    if (fizzleTriggered || spellVisible || !gameStart) return;
     const interval = setInterval(() => {
       setTimer(prev => {
         if (prev <= 0) {
@@ -193,23 +204,23 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
       });
     }, 100);
     return () => clearInterval(interval);
-  }, [gameOver, fizzleTriggered, spellVisible, gameStart]);
+  }, [fizzleTriggered, spellVisible, gameStart]);
   
   useEffect(() => { // Trigger Fizzle ONCE when timer hits 0
-    if (timer <= 0 && !gameOver && !fizzleTriggered) {
+    if (timer <= 0 && gameStart && !fizzleTriggered) {
       setFizzleTriggered(true);
       handleFizzle();
     }
-  }, [timer, gameOver, fizzleTriggered, handleFizzle]);
+  }, [timer, gameStart, fizzleTriggered, handleFizzle]);
 
   useEffect(() => { // Spell Casted
     if (!spellVisible) return;
+    socket.emit('dealDmg', roomId, () => {}); 
     const explodeTimeout = setTimeout(() => {
       setSpellExploded(true);
       explodeSound.current.play();
       // if (selectedWizard.id === "fire-mage") {setEnemyHP((prev) => prev - 100);} // Test
       setEnemyHP((prev) => prev - 20);
-      socket.emit('dealDmg', roomId, () => {}); 
     }, 750); // spell travel time
   
     const cleanupTimeout = setTimeout(() => {
@@ -223,6 +234,25 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
       clearTimeout(cleanupTimeout);
     };
   }, [spellVisible, resetRound, explodeSound, selectedWizard, roomId]);
+
+  useEffect(() => { // Enemy Spell Casted
+    if (!enemySpellVisible) return;
+    const enemyExplodeTimeout = setTimeout(() => {
+      setEnemySpellExploded(true);
+      explodeSound.current.play();
+      triggerDamageAnimation(); 
+    }, 750);
+  
+    const enemyCleanupTimeout = setTimeout(() => {
+      setEnemySpellVisible(false);
+      setEnemySpellExploded(false);
+    }, 750 + 425); 
+
+    return () => {
+      clearTimeout(enemyExplodeTimeout);
+      clearTimeout(enemyCleanupTimeout);
+    };
+  }, [enemySpellVisible, explodeSound]);
 
   useEffect(() => { // Empower Spell
     if (empowering) {
@@ -338,6 +368,11 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
                 style={{ visibility: spellVisible || spellExploded ? "visible" : "hidden" }}
               />
               <img src={ enemyWizardImageMini } ref={imgRef} alt="dummy" className="training-dummy" style={{ display: `none`, transform: `ScaleX(-1)` }}/>
+              <img
+                src={enemySpellExploded ? "./images/explode.png" : enemySpell} alt="Wizard-spell-enemy"
+                className={`enemy-spell ${enemySpellVisible ? "enemy-spell-active" : ""}`}
+                style={{ visibility: enemySpellVisible || enemySpellExploded ? "visible" : "hidden" }}
+              />
             </div>
             <div className="timer-bar-container">
               <div className={`timer-bar ${timer <= 10 ? "danger" : timer <= 30 ? "warning" : ""}`} style={{ width: `${(timer / STARTING_TIME) * 100}%` }} />
@@ -371,7 +406,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
           <img src="./images/explode.png" alt="Enemy-explode" className="explosion" 
           style={{ visibility: spellExploded ? "visible" : "hidden" }}/>
           <div className="enemy-health-bar">
-            <div className="enemy-hp" style={{ width: `${(enemyhp/ ENEMY_HP) * 100}%` }}></div>
+            <div className="enemy-hp" style={{ width: `${(enemyhp/ STARTING_HP) * 100}%` }}></div>
           </div>
           <hr className="divider" />
           <div className="keyboard-preview">

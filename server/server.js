@@ -13,7 +13,8 @@ const io = new Server(server, {
   cors: {
     origin: '*', // or specific frontend URL
     methods: ['GET', 'POST']
-  }
+  },
+  path: '/socket.io',
 });
 
 // Store rooms and users in-memory
@@ -67,7 +68,7 @@ io.on('connection', (socket) => {
     const otherPlayer = rooms[roomId].find(p => p.id !== socket.id);
     playerData.ready = !ready;
 
-    console.log(`Letting ${otherPlayer.username} know that ${playerData.username} is ${playerData.ready}`)
+    console.log(`Letting ${otherPlayer.username} know that ${playerData.username} is Ready: ${playerData.ready}`)
     io.to(otherPlayer.id).emit('opponentReady', playerData.ready);
 
     if (playerData.ready && otherPlayer.ready) {
@@ -79,14 +80,41 @@ io.on('connection', (socket) => {
   });
 
   socket.on('dealDmg', (roomId) => {
+    const playerData = rooms[roomId].find(p => p.id === socket.id);
     const otherPlayer = rooms[roomId].find(p => p.id !== socket.id);
     otherPlayer.hp -= 20;
     io.to(otherPlayer.id).emit('takeDmg');
     console.log(`${otherPlayer.username} has ${otherPlayer.hp} left!`)
-    if (otherPlayer.hp == 0) {
+    if (otherPlayer.hp <= 0) {
+      io.to(socket.id).emit('GameDone', playerData.username);
+      io.to(otherPlayer.id).emit('GameDone', playerData.username);
+    }
+  });
+
+  socket.on('recoil', (roomId) => {
+    const playerData = rooms[roomId].find(p => p.id === socket.id);
+    playerData.hp -= 10;
+    console.log(`${playerData.username} has ${playerData.hp} left!`)
+    if (playerData.hp <= 0) {
       io.to(socket.id).emit('GameDone');
       io.to(otherPlayer.id).emit('GameDone');
     }
+  });
+
+  socket.on('resetGame', (roomId) => {
+    const playerData = rooms[roomId].find(p => p.id === socket.id);
+    const otherPlayer = rooms[roomId].find(p => p.id !== socket.id);
+
+    otherPlayer.hp = 100;
+    playerData.hp = 100;
+
+    otherPlayer.ready = false;
+    playerData.ready = false;
+
+    console.log(`${playerData.username} is Ready: ${playerData.ready}`)
+    console.log(`${otherPlayer.username} is Ready: ${playerData.ready}`)
+    io.to(playerData.id).emit('opponentReady', false);
+    io.to(otherPlayer.id).emit('opponentReady', false);
   });
 
   // Handle disconnects

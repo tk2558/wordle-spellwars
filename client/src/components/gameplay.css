@@ -135,11 +135,12 @@
   top: 0;
   right: 50px;
   transition: transform .8s linear;
+  transform: scaleX(-1);
   z-index: 10;
 }
 
 .enemy-spell-active {
-  transform: translateX(-245px);
+  transform: scaleX(-1) translateX(240px);
 }
 
 .training-dummy {
@@ -243,6 +244,7 @@
   width: 160px;
   height: 160px;
   margin-inline: auto;
+  z-index: 1;
 }
 
 .explosion {
@@ -250,6 +252,7 @@
   height: 160px;
   margin-left: -160px;
   visibility: hidden;
+  z-index: 10;
 }
 
 .enemy-health-bar {
