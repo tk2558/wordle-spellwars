@@ -79,11 +79,17 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('dealDmg', (roomId) => {
+  socket.on('dealDmg', (roomId, dmg, selectedWizardId) => {
     const playerData = rooms[roomId].find(p => p.id === socket.id);
     const otherPlayer = rooms[roomId].find(p => p.id !== socket.id);
-    otherPlayer.hp -= 20;
-    io.to(otherPlayer.id).emit('takeDmg');
+
+    otherPlayer.hp -= dmg;
+    io.to(otherPlayer.id).emit('takeDmg', dmg, selectedWizardId);
+
+    if (selectedWizardId === "nature-mage") { 
+      playerData.hp += 5; 
+    }
+
     console.log(`${otherPlayer.username} has ${otherPlayer.hp} left!`)
     if (otherPlayer.hp <= 0) {
       io.to(socket.id).emit('GameDone', playerData.username);

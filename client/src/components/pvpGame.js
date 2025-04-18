@@ -28,6 +28,8 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
   const [enemySpell, setEnemySpell] = useState(null);
   const [enemySpellVisible, setEnemySpellVisible] = useState(false);
   const [enemySpellExploded, setEnemySpellExploded] = useState(false);
+  const [frozenStatus, setFrozenStatus] = useState(false);
+
   const imgRef = useRef(null);
 
   const [hp, setHP] = useState(STARTING_HP);
@@ -123,7 +125,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
 
   useEffect(() => { // Keyboard
     const handleKeyDown = (e) => {
-      if (!gameStart) { return; }
+      if (!gameStart || frozenStatus) { return; }
       const key = e.key.toUpperCase();
       if (key === "BACKSPACE") {
         handleBackspace();
@@ -161,9 +163,25 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
       setGameStart(true);
     });
 
-    socket.on('takeDmg', () => { 
-      setHP((prev) => Math.max(prev - 20, 0)) 
+    socket.on('takeDmg', (dmg, selectedWizardId) => { 
+      setHP((prev) => prev - dmg);
       setEnemySpellVisible(true);
+      if (selectedWizardId === "nature-mage") { 
+        setMessage("Enemy Healed 5 HP!");
+        setEnemyHP(prev => prev + 5); 
+      }
+      else if (selectedWizardId === "ice-mage") {
+        setMessage("Enemy Froze you for 5 seconds!");
+        setFrozenStatus(true); 
+        setTimeout(() => {
+          setFrozenStatus(false); 
+        }, 500);
+      }
+      else if (selectedWizardId === "death-mage") { 
+        setMessage("Enemy lowered your time!");
+        setTimer(prev => prev - 10); 
+      }
+      else { setMessage(`Enemy dealt ${dmg} to you!`);}
     });
 
     socket.on('GameDone', (Winner) => {
@@ -215,12 +233,18 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
 
   useEffect(() => { // Spell Casted
     if (!spellVisible) return;
-    socket.emit('dealDmg', roomId, () => {}); 
+    let dmg = 20; // base dmg
+
+    if (selectedWizard.id === "fire-mage") { elementRefs.current.forEach((el) => { if (el.textContent === "🔥") { dmg += 2; } }); }
+    else if (selectedWizard.id === "nature-mage") { setHP(prev => prev + 5); }
+    else if (selectedWizard.id === "lightning-mage") { dmg += Math.max(timer / 5, 0); }
+    else if (selectedWizard.id === "ocean-mage") { dmg += 5; }
+
+    socket.emit('dealDmg', roomId, dmg, selectedWizard.id, () => {}); 
     const explodeTimeout = setTimeout(() => {
       setSpellExploded(true);
       explodeSound.current.play();
-      // if (selectedWizard.id === "fire-mage") {setEnemyHP((prev) => prev - 100);} // Test
-      setEnemyHP((prev) => prev - 20);
+      setEnemyHP((prev) => prev - dmg);
     }, 750); // spell travel time
   
     const cleanupTimeout = setTimeout(() => {
@@ -233,7 +257,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
       clearTimeout(explodeTimeout);
       clearTimeout(cleanupTimeout);
     };
-  }, [spellVisible, resetRound, explodeSound, selectedWizard, roomId]);
+  }, [spellVisible, resetRound, explodeSound, selectedWizard, roomId, timer]);
 
   useEffect(() => { // Enemy Spell Casted
     if (!enemySpellVisible) return;
