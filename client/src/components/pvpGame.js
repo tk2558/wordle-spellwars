@@ -175,7 +175,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
         setFrozenStatus(true); 
         setTimeout(() => {
           setFrozenStatus(false); 
-        }, 500);
+        }, 5000);
       }
       else if (selectedWizardId === "death-mage") { 
         setMessage("Enemy lowered your time!");
@@ -237,7 +237,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
 
     if (selectedWizard.id === "fire-mage") { elementRefs.current.forEach((el) => { if (el.textContent === "🔥") { dmg += 2; } }); }
     else if (selectedWizard.id === "nature-mage") { setHP(prev => prev + 5); }
-    else if (selectedWizard.id === "lightning-mage") { dmg += Math.max(timer / 5, 0); }
+    else if (selectedWizard.id === "lightning-mage") { dmg += Math.ceil(timer / 4); }
     else if (selectedWizard.id === "ocean-mage") { dmg += 5; }
 
     socket.emit('dealDmg', roomId, dmg, selectedWizard.id, () => {}); 
