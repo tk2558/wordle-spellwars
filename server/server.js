@@ -53,7 +53,7 @@ io.on('connection', (socket) => {
 
   socket.on('getEnemy', (roomId) => {
     const room = rooms[roomId];
-    if (room.length <= 1) { return; }
+    if (!room || room.length <= 1) { return; }
 
     const playerData = rooms[roomId].find(p => p.id === socket.id);
     const otherPlayer = rooms[roomId].find(p => p.id !== socket.id);
@@ -68,14 +68,16 @@ io.on('connection', (socket) => {
     const otherPlayer = rooms[roomId].find(p => p.id !== socket.id);
     playerData.ready = !ready;
 
-    console.log(`Letting ${otherPlayer.username} know that ${playerData.username} is Ready: ${playerData.ready}`)
-    io.to(otherPlayer.id).emit('opponentReady', playerData.ready);
-
-    if (playerData.ready && otherPlayer.ready) {
-      console.log(`Game for Room ${roomId} start!`)
-      //io.to(room).emit('bothPlayersReady');
-      io.to(socket.id).emit('bothPlayersReady', otherPlayer);
-      io.to(otherPlayer.id).emit('bothPlayersReady', playerData);
+    if (otherPlayer) {
+      console.log(`Letting ${otherPlayer.username} know that ${playerData.username} is Ready: ${playerData.ready}`)
+      io.to(otherPlayer.id).emit('opponentReady', playerData.ready);
+  
+      if (playerData.ready && otherPlayer.ready) {
+        console.log(`Game for Room ${roomId} start!`)
+        //io.to(room).emit('bothPlayersReady');
+        io.to(socket.id).emit('bothPlayersReady', otherPlayer);
+        io.to(otherPlayer.id).emit('bothPlayersReady', playerData);
+      }
     }
   });
 
@@ -87,7 +89,7 @@ io.on('connection', (socket) => {
     io.to(otherPlayer.id).emit('takeDmg', dmg, selectedWizardId);
 
     if (selectedWizardId === "nature-mage") { 
-      playerData.hp += 5; 
+      playerData.hp += 10; 
     }
 
     console.log(`${otherPlayer.username} has ${otherPlayer.hp} left!`)
@@ -99,6 +101,7 @@ io.on('connection', (socket) => {
 
   socket.on('recoil', (roomId) => {
     const playerData = rooms[roomId].find(p => p.id === socket.id);
+    const otherPlayer = rooms[roomId].find(p => p.id !== socket.id);
     playerData.hp -= 10;
     console.log(`${playerData.username} has ${playerData.hp} left!`)
     if (playerData.hp <= 0) {
@@ -111,29 +114,48 @@ io.on('connection', (socket) => {
     const playerData = rooms[roomId].find(p => p.id === socket.id);
     const otherPlayer = rooms[roomId].find(p => p.id !== socket.id);
 
-    otherPlayer.hp = 100;
+    if (otherPlayer) { 
+      otherPlayer.ready = false;
+      otherPlayer.hp = 100;
+      console.log(`${otherPlayer.username} is Ready: ${playerData.ready}`)
+      io.to(otherPlayer.id).emit('opponentReady', false);
+    }
+
     playerData.hp = 100;
-
-    otherPlayer.ready = false;
     playerData.ready = false;
-
     console.log(`${playerData.username} is Ready: ${playerData.ready}`)
-    console.log(`${otherPlayer.username} is Ready: ${playerData.ready}`)
     io.to(playerData.id).emit('opponentReady', false);
-    io.to(otherPlayer.id).emit('opponentReady', false);
+  });
+
+  socket.on('leave', (roomId) => {
+    console.log(`User ${socket.id} left room ${roomId}`);
+
+    const playerIndex = rooms[roomId].findIndex(p => p.id === socket.id);
+    rooms[roomId].splice(playerIndex, 1); // remove player from room
+
+    if (rooms[roomId].length > 0) {
+      io.to(rooms[roomId][0].id).emit('playerLeft');
+      console.log(`Leave: Only ${rooms[roomId].length} player (${rooms[roomId][0].username}) in room ${roomId}`);
+    } else {
+      delete rooms[roomId];
+      console.log(`Leave: Room ${roomId} deleted`);
+    }
   });
 
   // Handle disconnects
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
     for (const [roomId, room] of Object.entries(rooms)) {
-      if (room.length == 1) {
-        io.to(roomId).emit('playerLeft');
-        break;
-      }
-      else if (room.length == 0) {
-        delete rooms[roomId];
-        console.log(`Room ${roomId}deleted`);
+      const playerIndex = room.findIndex(p => p.id === socket.id);
+      if (playerIndex !== -1) {
+        room.splice(playerIndex, 1); // remove player from room
+        if (room.length > 0) {
+          io.to(room[0].id).emit('playerLeft');
+          console.log(`DC: Only ${room.length} player (${room[0].username}) in room ${roomId}`);
+        } else {
+          delete rooms[roomId];
+          console.log(`DC: Room ${roomId} deleted`);
+        }
         break;
       }
     }

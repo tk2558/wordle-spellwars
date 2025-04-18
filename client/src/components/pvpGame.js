@@ -57,9 +57,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
   const readyBtnRef = useRef(null);
   const msgRef = useRef(null);
 
-  //const [players, setPlayers] = useState([]);
-
-  const handleReady = () => { // Function to reset game 
+  const handleReady = () => {
     setReady((prev) => !prev);
     socket.emit('setPlayerReady', ready, roomId, () => {
       setHP(STARTING_HP);
@@ -140,14 +138,13 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
   });
 
   useEffect(() => { // Socket
-    socket.emit('getEnemy', roomId, () => {}); 
     socket.on('opponentInfo', (enemy) => {
-      //console.log(enemy);
       setOpponentUsername(enemy.username);
       setEnemyWizardImage(enemy.wizard.img);
       setEnemyWizardImageMini(enemy.wizard.cast);
       setEnemySpell(enemy.wizard.spell);
       imgRef.current.style.display = 'inline';
+      readyBtnRef.current.style.display = 'inline';
     });
 
     socket.on('opponentReady', (ready) => { setOpponentReady(ready); });
@@ -164,22 +161,22 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
     });
 
     socket.on('takeDmg', (dmg, selectedWizardId) => { 
-      setHP((prev) => prev - dmg);
+      setHP((prev) => Math.max(0, prev - dmg));
       setEnemySpellVisible(true);
       if (selectedWizardId === "nature-mage") { 
-        setMessage("Enemy Healed 5 HP!");
-        setEnemyHP(prev => prev + 5); 
+        setMessage("Enemy Healed 10 HP!");
+        setEnemyHP(prev => prev + 10); 
       }
       else if (selectedWizardId === "ice-mage") {
-        setMessage("Enemy Froze you for 5 seconds!");
+        setMessage("Enemy Froze you for 8 seconds!");
         setFrozenStatus(true); 
         setTimeout(() => {
           setFrozenStatus(false); 
-        }, 5000);
+        }, 8000);
       }
       else if (selectedWizardId === "death-mage") { 
-        setMessage("Enemy lowered your time!");
-        setTimer(prev => prev - 10); 
+        setMessage("Enemy halved your time!");
+        setTimer(prev => prev/2); 
       }
       else { setMessage(`Enemy dealt ${dmg} to you!`);}
     });
@@ -194,19 +191,35 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
       readyBtnRef.current.style.display = 'inline';
       readyBtnRef.current.backgroundColor = '#444';
     });
+    socket.on('playerLeft', () => {       
+      setGameStart(false);       
+      socket.emit('resetGame', roomId, () => {});        
+      setMessage(`Opponent Left!`);         
+      setReady(false);
+
+      setOpponentUsername(null);       
+      setEnemyWizardImage("./images/loading.png");       
+      imgRef.current.style.display = 'none';
+      readyBtnRef.current.style.display = 'none';
+    });
 
     return () => {
       socket.off('opponentInfo');
       socket.off('opponentReady');
       socket.off('bothPlayersReady');
       socket.off('takeDmg');
+      socket.off('GameDone');
+      socket.off('playerLeft');
     };
-  }, [roomId, hp, ready, resetRound]);
+  }, [roomId, hp, ready, readyBtnRef, resetRound]);
 
   useEffect(() => { // Sound Effects
     empowerSound.current = new Audio('./audio/empower.wav');
     explodeSound.current = new Audio('./audio/explosion.wav');
     fizzleSound.current = new Audio('./audio/fizzle.wav');
+    empowerSound.current.preload = 'auto';
+    explodeSound.current.preload = 'auto';
+    fizzleSound.current.preload = 'auto';
     fizzleSound.current.volume = .1;
   }, [empowerSound, explodeSound, fizzleSound]);
 
@@ -236,7 +249,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
     let dmg = 20; // base dmg
 
     if (selectedWizard.id === "fire-mage") { elementRefs.current.forEach((el) => { if (el.textContent === "🔥") { dmg += 2; } }); }
-    else if (selectedWizard.id === "nature-mage") { setHP(prev => prev + 5); }
+    else if (selectedWizard.id === "nature-mage") { setHP(prev => prev + 10); }
     else if (selectedWizard.id === "lightning-mage") { dmg += Math.ceil(timer / 4); }
     else if (selectedWizard.id === "ocean-mage") { dmg += 5; }
 
@@ -244,7 +257,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
     const explodeTimeout = setTimeout(() => {
       setSpellExploded(true);
       explodeSound.current.play();
-      setEnemyHP((prev) => prev - dmg);
+      setEnemyHP((prev) => Math.max(0,prev - dmg));
     }, 750); // spell travel time
   
     const cleanupTimeout = setTimeout(() => {
@@ -382,7 +395,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
         <div className="game-box">
           <div className="status-header">
             <p className="username" ref={gameBoxRef}>{username} - {hp} HP</p>
-            <p className="readyBtn" ref={readyBtnRef} style={{ backgroundColor: ready ? '#6aaa64' : '#444' }} onClick={handleReady}>Ready</p>
+            <p className="readyBtn" ref={readyBtnRef} style={{ display: "none", backgroundColor: ready ? '#6aaa64' : '#444' }} onClick={handleReady}>Ready</p>
             <p className="message" ref={msgRef} style={{ display: `none`}}>{message}</p>
             <div className ="banner">
               <img src={`${selectedWizard.gif}`} alt="Wizard" className="wizard-icon" ref={wizardRef}/>

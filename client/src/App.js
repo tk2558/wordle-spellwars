@@ -36,7 +36,7 @@ const wizards = [
     cast: "/images/nature-mage-cast.png",
     element: "🌼",
     quote: "\"Return to Mother Nature\"",
-    description: "The nature mage heals your HP based on leftover attempts after successfully casting a spell."
+    description: "The nature mage heals your HP after successfully casting a spell."
   },
   {
     id: "lightning-mage",
@@ -58,8 +58,8 @@ const wizards = [
     cast: "/images/death-mage-cast.png",
     element: "💀",
     quote: "\"...\"",
-    description: "The death mage decreases enemy player's time after successfully casting a spell."
-  },///*
+    description: "The death mage halves enemy player's current time after successfully casting a spell."
+  },
   {
     id: "ocean-mage",
     name: "Ocean Mage",
@@ -69,20 +69,20 @@ const wizards = [
     cast: "/images/ocean-mage-cast.png",
     element: "🔱",
     quote: "\"A\"",
-    description: "The ocean mage does things after (idk yet) casting a spell."
+    description: "The ocean mage deals extra base damage after casting a spell."
   } 
-  //*/
 ];
 
 export default function MainMenu() {
   const [selectedWizard, setSelectedWizard] = useState(wizards[0]);
   const [username, setUsername] = useState("Guest" + Math.floor(Math.random() * 100000));
   const [showJoinModal, setShowJoinModal] = useState(false);
-  const [gameMode, setGameMode] = useState(null); // "solo" | "pvp" | "join" | null
+  const [gameMode, setGameMode] = useState(null); // "solo" | "pvp" | null
   const [roomId, setRoomId] = useState("");
   const [inputRoomId, setInputRoomId] = useState("");
   
   const handleExit = () => { // Function to reset game mode
+    if (gameMode === "pvp") {  socket.emit('leave', roomId, () => {});  }
     setGameMode(null);
     setRoomId("");
   };
@@ -113,6 +113,7 @@ export default function MainMenu() {
   }
   // Future PVP
   if (gameMode === "pvp" && roomId) {
+    socket.emit('getEnemy', roomId, () => {}); 
     return <PvPGame username={username} selectedWizard={selectedWizard} onExit={handleExit} roomId={roomId} />;
   }
   // Future join PVP
