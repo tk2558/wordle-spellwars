@@ -12,22 +12,19 @@ In PvP mode: 2 Players will continously cast spells to damage each other until o
 Failing to cast a spell by either not figuring out the right word or running out time will cause the spell to fizzle.
 When a spell fizzles it, the spellcaster will take recoil damage
 
-### Single Player `cd client -> npm start`
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
-
-You can play practice mode this way and play infinitely against a training dummy
-
-### Multi Player `cd client -> npm start, cd server -> node .`
-Accessing multiplayer requires the user to run both the client and server files 
+### Single Player && Multi Player:
+To use run the application use command `npm start` to concurrently run `cd client -> npm start` and `cd sever -> node . `
 After running both, host must forward ports 3000 and 3001 in public visibility 
 
-*replace export const socket = io('http://localhost:3001'); in socket.js with
+For Single-player, you can play practice mode infinitely against a training dummy
 
-export const socket = io('${forward_port_3001_url}', {
-    path: '/socket.io',           
-    transports: ['websocket'],    
-    secure: true,                 
-  });
+For Multi-player, players can create a lobby and other players may join lobbies to play against each other
 
-When these conditions are filled, other players may create and join lobbies to play against each other
+### Main Menu
+![Main Menu](client\public\screenshots\Main-Menu.JPG)
+
+### Practice Mode
+![Solo Practice Mode](client\public\screenshots\Practice-Mode.JPG)
+
+### Lobby Mulitplayer (Waiting for Another player to join)
+![Lobby](client\public\screenshots\Lobby.JPG)
