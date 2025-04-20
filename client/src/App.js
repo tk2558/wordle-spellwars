@@ -36,7 +36,7 @@ const wizards = [
     cast: "/images/nature-mage-cast.png",
     element: "🌼",
     quote: "\"Return to Mother Nature\"",
-    description: "The nature mage heals your HP after successfully casting a spell."
+    description: "The nature mage heals their HP after successfully casting a spell."
   },
   {
     id: "lightning-mage",
@@ -59,8 +59,8 @@ const wizards = [
     element: "💀",
     quote: "\"...\"",
     description: "The death mage halves enemy player's current time after successfully casting a spell."
-  },
-  {
+  },/*
+  { 
     id: "ocean-mage",
     name: "Ocean Mage",
     img: "/images/ocean-mage.png",
@@ -70,7 +70,7 @@ const wizards = [
     element: "🔱",
     quote: "\"A\"",
     description: "The ocean mage deals extra base damage after casting a spell."
-  } 
+  } */
 ];
 
 export default function MainMenu() {
@@ -107,17 +107,16 @@ export default function MainMenu() {
     });
   };
 
-  // Return SoloGame when solo mode is selected
   if (gameMode === "solo") { 
     return <SoloGame username={username} selectedWizard={selectedWizard} onExit={handleExit}/>; 
   }
-  // Future PVP
+  // PVP
   if (gameMode === "pvp" && roomId) {
     socket.emit('getEnemy', roomId, () => {}); 
     return <PvPGame username={username} selectedWizard={selectedWizard} onExit={handleExit} roomId={roomId} />;
   }
-  // Future join PVP
-  // if (gameMode === "join") {  <PvPGame username={username} selectedWizard={selectedWizard} roomId={roomId} onExit={handleExit} />; }
+  // Future join PVE
+  // if (gameMode === "pve") {  <PvEGame username={username} selectedWizard={selectedWizard} onExit={handleExit} />; }
 
   return (
     <div className="main-menu">

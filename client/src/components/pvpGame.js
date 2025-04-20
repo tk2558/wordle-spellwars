@@ -439,7 +439,7 @@ export default function PvPGame({ selectedWizard, username, onExit, roomId }) {
           opponentUsername ? `${opponentUsername} - ${opponentReady ? "Ready" : "Not Ready"}` : "Waiting for another player..."
           }
           </h2>
-          <img src={enemyWizardImage} alt="Enemy-Dummy" className="enemy-image" style={{ transform: `ScaleX(-1)` }}/>
+          <img src={enemyWizardImage} alt="Enemy-Dummy" className="enemy-image" z-index = "1" style={{ transform: `ScaleX(-1)` }}/>
           <img src="./images/explode.png" alt="Enemy-explode" className="explosion" 
           style={{ visibility: spellExploded ? "visible" : "hidden" }}/>
           <div className="enemy-health-bar">
