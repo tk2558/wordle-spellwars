@@ -3,6 +3,11 @@
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 The purpose of this project was to create a game based on the mechanics of Wordle with a theme of Wizards casting spells.
 
+### Features:
+1) Unique Animations for Each Wizard
+2) BGM and other Sound Effects
+3) Sockets for Multiplayer Functionality
+
 ## Gameplay
 
 Players choose a type of Elemental Wizard to play as and solve Wordle puzzles to cast spells.\
@@ -20,11 +25,11 @@ For Single-player, you can play practice mode infinitely against a training dumm
 
 For Multi-player, players can create a lobby and other players may join lobbies to play against each other
 
-### Main Menu
+### Main Menu:
 ![Main Menu](https://github.com/tk2558/wordle-spellwars/blob/master/client/public/screenshots/Main-Menu.JPG)
 
-### Practice Mode
+### Practice Mode:
 ![Solo Practice Mode](https://github.com/tk2558/wordle-spellwars/blob/master/client/public/screenshots/Practice-Mode.JPG)
 
-### Lobby Mulitplayer (Waiting for Another player to join)
+### Lobby Mulitplayer (Waiting for Another player to join):
 ![Lobby](https://github.com/tk2558/wordle-spellwars/blob/master/client/public/screenshots/Lobby.JPG)
