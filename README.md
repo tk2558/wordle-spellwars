@@ -21,10 +21,10 @@ For Single-player, you can play practice mode infinitely against a training dumm
 For Multi-player, players can create a lobby and other players may join lobbies to play against each other
 
 ### Main Menu
-![Main Menu](client\public\screenshots\Main-Menu.JPG)
+![Main Menu](https://github.com/tk2558/wordle-spellwars/blob/master/client/public/screenshots/Main-Menu.JPG)
 
 ### Practice Mode
-![Solo Practice Mode](client\public\screenshots\Practice-Mode.JPG)
+![Solo Practice Mode](https://github.com/tk2558/wordle-spellwars/blob/master/client/public/screenshots/Practice-Mode.JPG)
 
 ### Lobby Mulitplayer (Waiting for Another player to join)
-![Lobby](client\public\screenshots\Lobby.JPG)
+![Lobby](https://github.com/tk2558/wordle-spellwars/blob/master/client/public/screenshots/Lobby.JPG)
